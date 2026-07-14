@@ -1,8 +1,9 @@
 """
 Python Game Development Project: Guess the Number (Themed macOS GUI Version)
 Description: An enhanced visual guessing game with dynamic level themes, text graphic designs,
-             keyboard binds, centred window positioning, and nonblocking background audio.
-Features:    Adaptive voice alerts, rapid visual strobe flash, and live performance stats tracking.
+             keyboard binds, centred window positioning, and non-blocking background audio.
+Features:    Adaptive voice alerts, rapid visual strobe flash, defensive duplicate guess validation,
+             a togglable sliding previous guess drawer, and live performance stats tracking.
 """
 
 import random
@@ -34,6 +35,10 @@ CURRENT_LEVEL = 1
 SECRET_NUMBER = 0
 ATTEMPTS_LEFT = 7
 ATTEMPTS_TAKEN = 0
+
+PAST_GUESSES = set()      # Memory set used for anti-cheat validation checks
+GUESS_ORDER_LOG = []      # Ordered list tracking the exact sequence of attempts for display
+IS_HISTORY_VISIBLE = False # Tracks visibility state of the history display box
 
 IS_MUSIC_PLAYING = True
 MUSIC_PROCESS = None
@@ -176,6 +181,8 @@ def trigger_pulse_flash(count=0):
         title_label.config(bg=current_bg, fg=current_fg)
         feedback_label.config(bg=current_bg, fg=current_fg)
         attempts_label.config(bg=current_bg, fg=current_fg)
+        history_toggle_btn.config(bg=current_bg, fg=current_fg)
+        history_display_lbl.config(bg=current_bg, fg=current_fg)
         
         root.after(75, lambda: trigger_pulse_flash(count + 1))
     else:
@@ -199,6 +206,28 @@ def reset_visual_theme():
     attempts_label.config(bg=theme["bg"], fg=theme["text_fg"])
     
     stats_frame.config(bg=theme["bg"], fg=theme["title_fg"], highlightbackground=theme["accent"])
+    
+    history_toggle_btn.config(bg=theme["bg"], fg=theme["title_fg"])
+    history_display_lbl.config(bg=theme["box_bg"], fg=theme["text_fg"])
+
+
+def toggle_history_drawer():
+    """
+    TOGGLE LOG FEATURE: Expands or contracts the UI container size smoothly
+    to dynamically reveal or mask the live list of previous attempts.
+    """
+    global IS_HISTORY_VISIBLE
+    
+    if not IS_HISTORY_VISIBLE:
+        IS_HISTORY_VISIBLE = True
+        root.geometry(f"420x710")
+        history_display_lbl.pack(pady=(0, 10), after=history_toggle_btn)
+        history_toggle_btn.config(text="📊 Hide History")
+    else:
+        IS_HISTORY_VISIBLE = False
+        history_display_lbl.pack_forget()
+        root.geometry(f"420x650")
+        history_toggle_btn.config(text="📊 View History")
 
 
 def apply_theme():
@@ -227,6 +256,9 @@ def apply_theme():
         activeforeground="#000000",
         highlightbackground=theme["bg"]
     )
+    
+    history_toggle_btn.config(bg=theme["bg"], fg=theme["title_fg"])
+    history_display_lbl.config(bg=theme["box_bg"], fg=theme["text_fg"], highlightbackground=theme["accent"])
     
     stats_frame.config(bg=theme["bg"], fg=theme["title_fg"], highlightbackground=theme["accent"])
     games_played_label.config(bg=theme["bg"], fg=theme["text_fg"])
@@ -257,6 +289,17 @@ def update_stats_display():
     if WORST_SCORE > 0:
         worst_score_label.config(text=f"Worst Round (Most Guesses): {WORST_SCORE}")
 
+
+def refresh_history_log_label():
+    """
+    Formats and prints the active level's ordered tracking sequence inside the view panel.
+    """
+    if not GUESS_ORDER_LOG:
+        history_display_lbl.config(text="No guesses recorded yet for this level.")
+    else:
+        formatted_list = " ➔ ".join(str(g) for g in GUESS_ORDER_LOG)
+        history_display_lbl.config(text=f"Sequence: {formatted_list}")
+
 # ==============================================================================
 # 6. PRIMARY GAMEPLAY STATE MACHINE
 # ==============================================================================
@@ -265,11 +308,15 @@ def start_new_round():
     """
     Wipes structural local tracking values and initializes mathematical random targets.
     """
-    global SECRET_NUMBER, ATTEMPTS_LEFT, ATTEMPTS_TAKEN
+    global SECRET_NUMBER, ATTEMPTS_LEFT, ATTEMPTS_TAKEN, PAST_GUESSES, GUESS_ORDER_LOG
     SECRET_NUMBER = random.randint(1, 100)
     
     ATTEMPTS_LEFT = max(8 - CURRENT_LEVEL, 1)
     ATTEMPTS_TAKEN = 0
+    
+    PAST_GUESSES.clear()
+    GUESS_ORDER_LOG.clear()
+    refresh_history_log_label()
     
     apply_theme()
     feedback_label.config(text="I have chosen a number between 1 and 100.")
@@ -280,7 +327,7 @@ def start_new_round():
 
 def process_guess(event=None):
     """
-    Main evaluation pipeline. Includes asynchronous speech triggers and strobe events.
+    Main evaluation pipeline. Includes duplicate validation and history tracking log.
     """
     global TOTAL_GAMES_PLAYED, TOTAL_WINS, BEST_SCORE, WORST_SCORE, ATTEMPTS_LEFT, ATTEMPTS_TAKEN, CURRENT_LEVEL
     
@@ -300,6 +347,17 @@ def process_guess(event=None):
         speak_mac("Out of bounds")
         messagebox.showerror("Out of Bounds", "❌ Please guess a number between 1 and 100.")
         return
+        
+    # Structural Anti Cheat Protection Check
+    if guess in PAST_GUESSES:
+        stop_voice_overlays()
+        speak_mac("Already guessed")
+        messagebox.showwarning("Duplicate Guess", f"⚠️ You already tried {guess}!\nNo attempts were deducted.")
+        return
+        
+    PAST_GUESSES.add(guess)
+    GUESS_ORDER_LOG.append(guess)
+    refresh_history_log_label()
         
     ATTEMPTS_LEFT -= 1
     ATTEMPTS_TAKEN += 1
@@ -374,7 +432,7 @@ root = tk.Tk()
 root.title("Guess the Number")
 root.protocol("WM_DELETE_WINDOW", on_close)
 
-centre_window(root, 420, 640)
+centre_window(root, 420, 650)
 
 graphic_bg_top = tk.Label(root, font=("Courier", 14, "bold"))
 graphic_bg_top.pack(pady=(10, 5))
@@ -412,6 +470,30 @@ music_button = tk.Button(
     highlightthickness=0
 )
 music_button.pack(pady=5)
+
+history_toggle_btn = tk.Button(
+    root, 
+    text="📊 View History", 
+    command=toggle_history_drawer, 
+    font=("Segoe UI", 10, "bold"), 
+    bd=0, 
+    relief="flat", 
+    activebackground="#000000", 
+    highlightthickness=0
+)
+history_toggle_btn.pack(pady=5)
+
+history_display_lbl = tk.Label(
+    root, 
+    text="No guesses recorded yet for this level.", 
+    font=("Segoe UI", 10, "italic"), 
+    padx=10, 
+    pady=8, 
+    bd=0, 
+    highlightthickness=1,
+    width=40,
+    wraplength=320
+)
 
 graphic_bg_bottom = tk.Label(root, font=("Courier", 14, "bold"))
 graphic_bg_bottom.pack(pady=5)
