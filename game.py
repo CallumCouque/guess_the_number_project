@@ -1,9 +1,9 @@
 """
 Python Game Development Project: Guess the Number (Themed macOS GUI Version)
-Description: An enhanced visual guessing game with dynamic level themes, text graphic designs,
+Description: A modern visual guessing game with dynamic level themes, text graphic designs,
              keyboard binds, centred window positioning, and non-blocking background audio.
-Features:    Adaptive voice alerts, rapid visual strobe flash, defensive duplicate guess validation,
-             a togglable sliding previous guess drawer, and live performance stats tracking.
+Features:    Adaptive voice alerts, rapid visual strobe flash, school performance grades,
+             defensive anti-cheat duplicate tracking, and a togglable previous guess drawer.
 """
 
 import random
@@ -30,6 +30,7 @@ TOTAL_GAMES_PLAYED = 0
 TOTAL_WINS = 0
 BEST_SCORE = float('inf')
 WORST_SCORE = 0
+HIGHEST_LEVEL_ACHIEVED = 1  # Track the absolute peak level achieved in the session
 
 CURRENT_LEVEL = 1
 SECRET_NUMBER = 0
@@ -39,6 +40,7 @@ ATTEMPTS_TAKEN = 0
 PAST_GUESSES = set()      # Memory set used for anti-cheat validation checks
 GUESS_ORDER_LOG = []      # Ordered list tracking the exact sequence of attempts for display
 IS_HISTORY_VISIBLE = False # Tracks visibility state of the history display box
+HAS_WON_GAME = False       # Tracks if the overall game has been completed
 
 IS_MUSIC_PLAYING = True
 MUSIC_PROCESS = None
@@ -72,8 +74,8 @@ THEMES = {
 
 def speak_mac(text):
     """
-    Triggers the native macOS speech synthesis engine asynchronously
-    via independent subprocess hooks to isolate the Tkinter canvas loop.
+    Triggers the native macOS speech synthesis engine completely asynchronously
+    via independent subprocess hooks to isolate the core Tkinter canvas loop.
     """
     try:
         subprocess.Popen(["say", text], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -83,7 +85,8 @@ def speak_mac(text):
 
 def stop_voice_overlays():
     """
-    Forcefully terminates any queued speech tasks to avoid overlapping audio.
+    Forcefully terminates any queued or lingering vocal speech threads 
+    preceding transitions to avoid overlapping or delayed audio delivery.
     """
     try:
         subprocess.Popen(["killall", "say"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -93,19 +96,28 @@ def stop_voice_overlays():
 
 def background_music_loop():
     """
-    Ambient track background loader. Operates on a separate threading loop
-    and forces a low gain volume configuration.
+    High-reliability ambient track background loader. Operates on separate threading loops
+    and forces a low gain volume configuration via command flags.
     """
     global MUSIC_PROCESS
     
     possible_files = ["background.mp3", "background.wav", "background.m4a", "background", "background.MP3"]
     music_track = None
     
+    print("\n🔍 --- Audio Debug Status ---")
+    print(f"Current Directory: {SCRIPT_DIR}")
+    
     for filename in possible_files:
         full_path = os.path.join(SCRIPT_DIR, filename)
         if os.path.exists(full_path):
             music_track = full_path
+            print(f"✅ Found audio file: {filename}")
             break
+            
+    if not music_track:
+        print("❌ Audio file not found in directory. Looking for local files:")
+        print(os.listdir(SCRIPT_DIR))
+    print("-----------------------------\n")
 
     while IS_MUSIC_PLAYING:
         if music_track:
@@ -128,7 +140,7 @@ def background_music_loop():
 
 def toggle_music():
     """
-    Switches the background soundtrack stream on or off at runtime.
+    Switches the background soundtrack stream on or off smoothly at runtime.
     """
     global IS_MUSIC_PLAYING, MUSIC_PROCESS, music_thread
     
@@ -144,13 +156,13 @@ def toggle_music():
         music_thread.start()
 
 # ==============================================================================
-# 4. AUDIO VISUAL GRAPHICS SUBSYSTEM
+# 4. AUDIO-VISUAL GRAPHICS SUBSYSTEM
 # ==============================================================================
 
 def centre_window(window, width, height):
     """
-    Calculates display geometry parameters to align the 
-    application container directly to the monitor spatial centre.
+    Calculates hardware display geometry parameters to align the 
+    application container directly to the monitor spatial center.
     """
     screen_width = window.winfo_screenwidth()
     screen_height = window.winfo_screenheight()
@@ -163,9 +175,12 @@ def centre_window(window, width, height):
 
 def trigger_pulse_flash(count=0):
     """
-    Asynchronous recursive colour switcher that produces a multi phase high intensity
-    strobe effect spanning across visual blocks for 300 ms.
+    Asynchronous recursive color switcher that produces a multi-phase high-intensity
+    strobe effect spanning across all visual blocks for 300ms.
     """
+    if HAS_WON_GAME:
+        return
+
     theme_id = ((CURRENT_LEVEL - 1) % len(THEMES)) + 1
     theme = THEMES[theme_id]
     
@@ -191,8 +206,11 @@ def trigger_pulse_flash(count=0):
 
 def reset_visual_theme():
     """
-    Reestablishes the standard baseline background canvas styles post strobe flash.
+    Re-establishes the standard baseline background canvas styles post-strobe flash.
     """
+    if HAS_WON_GAME:
+        return
+
     theme_id = ((CURRENT_LEVEL - 1) % len(THEMES)) + 1
     theme = THEMES[theme_id]
     
@@ -220,19 +238,19 @@ def toggle_history_drawer():
     
     if not IS_HISTORY_VISIBLE:
         IS_HISTORY_VISIBLE = True
-        root.geometry(f"420x710")
+        root.geometry(f"420x750")  # Slightly expanded to clear the extra statistic line
         history_display_lbl.pack(pady=(0, 10), after=history_toggle_btn)
         history_toggle_btn.config(text="📊 Hide History")
     else:
         IS_HISTORY_VISIBLE = False
         history_display_lbl.pack_forget()
-        root.geometry(f"420x650")
+        root.geometry(f"420x690")
         history_toggle_btn.config(text="📊 View History")
 
 
 def apply_theme():
     """
-    Redraws colour profiles, typography variables, and pattern banners across widgets.
+    Redraws color profiles, typography variables, and pattern banners across widgets.
     """
     theme_id = ((CURRENT_LEVEL - 1) % len(THEMES)) + 1
     theme = THEMES[theme_id]
@@ -266,10 +284,135 @@ def apply_theme():
     win_rate_label.config(bg=theme["bg"], fg=theme["text_fg"])
     best_score_label.config(bg=theme["bg"], fg=theme["text_fg"])
     worst_score_label.config(bg=theme["bg"], fg=theme["text_fg"])
+    highest_level_label.config(bg=theme["bg"], fg=theme["text_fg"])
+    grade_rating_label.config(bg=theme["bg"], fg=theme["title_fg"])
+
+
+def show_victory_screen():
+    """
+    TRANSFORMATION: Replaces the core game loop elements with a high contrast,
+    glorious winners layout when Level 5 is successfully beaten.
+    """
+    global HAS_WON_GAME, IS_MUSIC_PLAYING, HIGHEST_LEVEL_ACHIEVED
+    HAS_WON_GAME = True
+    HIGHEST_LEVEL_ACHIEVED = 5
+    
+    # Terminate standard background loops
+    IS_MUSIC_PLAYING = False
+    if MUSIC_PROCESS:
+        try:
+            MUSIC_PROCESS.terminate()
+        except Exception:
+            pass
+            
+    # Apply a magnificent gold/black victory theme profile
+    root.configure(bg="#0B0C10")
+    graphic_bg_top.config(text="🏆 ⭐ 🏆 ⭐ 🏆 ⭐ 🏆 ⭐ 🏆 ⭐ 🏆", bg="#0B0C10", fg="#66FCF1")
+    graphic_bg_bottom.config(text="🏆 ⭐ 🏆 ⭐ 🏆 ⭐ 🏆 ⭐ 🏆 ⭐ 🏆", bg="#0B0C10", fg="#66FCF1")
+    
+    level_label.config(text="🏆 CAMPAIGN CLEARED 🏆", bg="#0B0C10", fg="#66FCF1")
+    title_label.config(text="ULTIMATE VICTORY", bg="#0B0C10", fg="#FFFFFF")
+    feedback_label.config(text="Congratulations! You beat all 5 Levels of Guess the Number!", bg="#0B0C10", fg="#C5C6C7")
+    attempts_label.config(text="Check your final ranking on the Dashboard below.", bg="#0B0C10", fg="#66FCF1")
+    
+    # Mask input controls and submit button, replacing them with a final exit action
+    guess_entry.pack_forget()
+    guess_button.pack_forget()
+    history_toggle_btn.pack_forget()
+    history_display_lbl.pack_forget()
+    
+    # Shift music toggler to a "Play Again" button
+    music_button.config(
+        text="🔄 Play Again", 
+        command=reset_entire_campaign, 
+        bg="#66FCF1", 
+        fg="#000000",
+        activebackground="#FFFFFF",
+        activeforeground="#000000"
+    )
+    
+    # Lock down stats dashboard visuals to high-spec styling
+    stats_frame.config(bg="#1F2833", fg="#66FCF1", highlightbackground="#45F3FF")
+    games_played_label.config(bg="#1F2833", fg="#FFFFFF")
+    games_won_label.config(bg="#1F2833", fg="#FFFFFF")
+    win_rate_label.config(bg="#1F2833", fg="#FFFFFF")
+    best_score_label.config(bg="#1F2833", fg="#FFFFFF")
+    worst_score_label.config(bg="#1F2833", fg="#FFFFFF")
+    highest_level_label.config(bg="#1F2833", fg="#FFFFFF")
+    grade_rating_label.config(bg="#1F2833", fg="#66FCF1")
+    
+    update_stats_display()
+    
+    # Trigger victory audio alerts
+    stop_voice_overlays()
+    speak_mac("Incredible work. Campaign Complete. You are the ultimate champion.")
+
+
+def reset_entire_campaign():
+    """
+    Clears all active statistical states and triggers a complete game reboot.
+    """
+    global TOTAL_GAMES_PLAYED, TOTAL_WINS, BEST_SCORE, WORST_SCORE, HIGHEST_LEVEL_ACHIEVED, CURRENT_LEVEL, HAS_WON_GAME, IS_MUSIC_PLAYING, music_thread
+    
+    TOTAL_GAMES_PLAYED = 0
+    TOTAL_WINS = 0
+    BEST_SCORE = float('inf')
+    WORST_SCORE = 0
+    HIGHEST_LEVEL_ACHIEVED = 1
+    CURRENT_LEVEL = 1
+    HAS_WON_GAME = False
+    
+    # Re-pack input UI units back into the display layout safely
+    guess_entry.pack(pady=15, after=attempts_label)
+    guess_button.pack(pady=10, after=guess_entry)
+    
+    # Reconfigure the audio controls
+    music_button.config(text="🔊 Mute Music", command=toggle_music)
+    history_toggle_btn.pack(pady=5, after=music_button)
+    
+    # Re-launch background audio threads
+    IS_MUSIC_PLAYING = True
+    music_thread = threading.Thread(target=background_music_loop, daemon=True)
+    music_thread.start()
+    
+    # Return to round setup
+    start_new_round()
 
 # ==============================================================================
 # 5. MATHEMATICAL LOGIC & PERFORMANCE SUBSYSTEM
 # ==============================================================================
+
+def calculate_performance_grade():
+    """
+    Evaluates historical gameplay variables to output a school academic performance grade.
+    """
+    if TOTAL_GAMES_PLAYED == 0 or TOTAL_WINS == 0:
+        return "N/A"
+        
+    win_percentage = (TOTAL_WINS / TOTAL_GAMES_PLAYED) * 100
+    
+    # Academic performance threshold checking logic
+    if win_percentage >= 90 and BEST_SCORE <= 3:
+        return "A+"
+    elif win_percentage >= 85:
+        return "A"
+    elif win_percentage >= 80:
+        return "A-"
+    elif win_percentage >= 75:
+        return "B+"
+    elif win_percentage >= 70:
+        return "B"
+    elif win_percentage >= 60:
+        return "B-"
+    elif win_percentage >= 55:
+        return "C+"
+    elif win_percentage >= 50:
+        return "C"
+    elif win_percentage >= 40:
+        return "C-"
+    else:
+        return "F"
+
 
 def update_stats_display():
     """
@@ -288,6 +431,12 @@ def update_stats_display():
         best_score_label.config(text=f"Best Round (Fewest Guesses): {BEST_SCORE}")
     if WORST_SCORE > 0:
         worst_score_label.config(text=f"Worst Round (Most Guesses): {WORST_SCORE}")
+        
+    # Refresh peak performance level metric
+    highest_level_label.config(text=f"Highest Level Achieved: Level {HIGHEST_LEVEL_ACHIEVED}")
+        
+    session_grade = calculate_performance_grade()
+    grade_rating_label.config(text=f"Performance Rating: {session_grade}")
 
 
 def refresh_history_log_label():
@@ -306,13 +455,18 @@ def refresh_history_log_label():
 
 def start_new_round():
     """
-    Wipes structural local tracking values and initializes mathematical random targets.
+    Wipes local tracking variables, defines new mathematical targets,
+    and clears out anti-cheat sequences for a fresh round.
     """
-    global SECRET_NUMBER, ATTEMPTS_LEFT, ATTEMPTS_TAKEN, PAST_GUESSES, GUESS_ORDER_LOG
+    global SECRET_NUMBER, ATTEMPTS_LEFT, ATTEMPTS_TAKEN, PAST_GUESSES, GUESS_ORDER_LOG, HIGHEST_LEVEL_ACHIEVED
     SECRET_NUMBER = random.randint(1, 100)
     
     ATTEMPTS_LEFT = max(8 - CURRENT_LEVEL, 1)
     ATTEMPTS_TAKEN = 0
+    
+    # Ensure peak state records remain verified
+    if CURRENT_LEVEL > HIGHEST_LEVEL_ACHIEVED:
+        HIGHEST_LEVEL_ACHIEVED = CURRENT_LEVEL
     
     PAST_GUESSES.clear()
     GUESS_ORDER_LOG.clear()
@@ -327,10 +481,14 @@ def start_new_round():
 
 def process_guess(event=None):
     """
-    Main evaluation pipeline. Includes duplicate validation and history tracking log.
+    Defensive input validation framework. Handles collision checks, logs successful attempts,
+    updates stats, triggers system voice outputs, and manages round transitions.
     """
     global TOTAL_GAMES_PLAYED, TOTAL_WINS, BEST_SCORE, WORST_SCORE, ATTEMPTS_LEFT, ATTEMPTS_TAKEN, CURRENT_LEVEL
     
+    if HAS_WON_GAME:
+        return
+
     user_input = guess_entry.get().strip()
     guess_entry.delete(0, tk.END)
     
@@ -348,7 +506,6 @@ def process_guess(event=None):
         messagebox.showerror("Out of Bounds", "❌ Please guess a number between 1 and 100.")
         return
         
-    # Structural Anti Cheat Protection Check
     if guess in PAST_GUESSES:
         stop_voice_overlays()
         speak_mac("Already guessed")
@@ -358,7 +515,7 @@ def process_guess(event=None):
     PAST_GUESSES.add(guess)
     GUESS_ORDER_LOG.append(guess)
     refresh_history_log_label()
-        
+    
     ATTEMPTS_LEFT -= 1
     ATTEMPTS_TAKEN += 1
     attempts_label.config(text=f"Attempts Remaining: {ATTEMPTS_LEFT}")
@@ -376,6 +533,11 @@ def process_guess(event=None):
             WORST_SCORE = ATTEMPTS_TAKEN
             
         update_stats_display()
+        
+        if CURRENT_LEVEL == 5:
+            show_victory_screen()
+            return
+            
         stop_voice_overlays()
         speak_mac("Correct")
         messagebox.showinfo("Winner!", f"🎉 Correct! You won Level {CURRENT_LEVEL} in {ATTEMPTS_TAKEN} attempts.")
@@ -412,7 +574,8 @@ def process_guess(event=None):
 
 def on_close():
     """
-    Intercepts window closure to safely stop background audio.
+    Intercepts the window destroy command pipeline to safely terminate background threads,
+    clear the sub-processes, and prevent orphan loops from staying active.
     """
     global IS_MUSIC_PLAYING, MUSIC_PROCESS
     IS_MUSIC_PLAYING = False
@@ -432,7 +595,8 @@ root = tk.Tk()
 root.title("Guess the Number")
 root.protocol("WM_DELETE_WINDOW", on_close)
 
-centre_window(root, 420, 650)
+# Expanded standard window footprint from 670 to 690 to fit the new dashboard line comfortably
+centre_window(root, 420, 690)
 
 graphic_bg_top = tk.Label(root, font=("Courier", 14, "bold"))
 graphic_bg_top.pack(pady=(10, 5))
@@ -516,6 +680,13 @@ best_score_label.pack(fill="x", pady=2)
 
 worst_score_label = tk.Label(stats_frame, text="Worst Round: N/A", **label_styles)
 worst_score_label.pack(fill="x", pady=2)
+
+# Dynamic line to display peak performance level achieved
+highest_level_label = tk.Label(stats_frame, text="Highest Level Achieved: Level 1", **label_styles)
+highest_level_label.pack(fill="x", pady=2)
+
+grade_rating_label = tk.Label(stats_frame, text="Performance Rating: N/A", font=("Segoe UI", 11, "bold"), anchor="w")
+grade_rating_label.pack(fill="x", pady=(8, 2))
 
 # ==============================================================================
 # 8. BACKGROUND INITIALIZATION RUNTIME CHECKS
