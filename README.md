@@ -18,9 +18,9 @@ The core game loop, state progression logic, and architecture were designed and 
 
 ## Core Features
 
-* **Anti Cheat Protection:** A memory tracking system records all previous guesses during a round. If a player submits a duplicate number, the game issues a warning without deducting an attempt from their remaining pool.
-* **Sliding History Drawer:** A toggle button expands the window container to display the exact chronological sequence of attempts made during the round.
-* **Dynamic Visual Themes:** Each level features a distinct colour palette, custom text banner, and typography. Submitting a guess triggers a flash across the screen.
+* **Anti Cheat Protection:** A memory tracking system records all previous guesses during a round. If a player submits a duplicate number or invalid input, the game issues a warning without deducting an attempt from their remaining pool.
+* **Sliding History Drawer:** A toggle button expands the window container to display the sequence of attempts made during the round.
+* **Dynamic Visual Themes:** Each level features a unique theme via colour palette, custom text banner, and typography. Submitting a guess triggers a flash across the screen.
 * **Asynchronous Audio:** Ambient background music loops at a low volume while native macOS vocal alerts announce game states. These operate on independent subprocesses to ensure the graphical interface never freezes.
 * **Performance Dashboard:** A tracking panel displays total games played, total wins, win percentage, best round, and peak level achieved. It also calculates an academic performance rating ranging from A plus down to F.
 
