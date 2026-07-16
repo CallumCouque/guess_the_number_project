@@ -18,6 +18,18 @@ An interactive guessing game built with Python and Tkinter. The application chal
 * **Asynchronous Audio:** Ambient background music loops at a low volume while native macOS vocal alerts announce game states. These operate on independent subprocesses to ensure the graphical interface never freezes.
 * **Performance Dashboard:** A tracking panel displays total games played, total wins, win percentage, best round, and peak level achieved. It also calculates an academic performance rating ranging from A plus down to F.
 
+## Troubleshooting Audio & Voice Alerts
+
+If you do not hear the voice alerts or background music:
+
+### On macOS:
+1. **Unmute System:** Ensure your Mac is not on mute and the output volume is turned up.
+2. **Terminal Permissions:** If running via a third party terminal wrapper, ensure your terminal has permission to run system alerts.
+3. **Check System Voice:** Open Terminal and type `say "hello"`. If you hear nothing, check your macOS **System Settings > Accessibility > Spoken Content** to ensure a system voice is downloaded.
+
+### On Windows:
+1. **PowerShell Execution:** The game uses native PowerShell speech. Ensure PowerShell is not blocked by strict administrative group policies.
+
 ## Technical Design Decisions
 
 * **Set Data Structure:** Storing previous attempts inside a Python set allows instantaneous lookup speeds when validating user input against duplicate guesses.
@@ -34,14 +46,3 @@ An interactive guessing game built with Python and Tkinter. The application chal
 python3 game.py
 ```
 
-## Troubleshooting Audio & Voice Alerts
-
-If you do not hear the voice alerts or background music:
-
-### On macOS:
-1. **Unmute System:** Ensure your Mac is not on mute and the output volume is turned up.
-2. **Terminal Permissions:** If running via a third party terminal wrapper, ensure your terminal has permission to run system alerts.
-3. **Check System Voice:** Open Terminal and type `say "hello"`. If you hear nothing, check your macOS **System Settings > Accessibility > Spoken Content** to ensure a system voice is downloaded.
-
-### On Windows:
-1. **PowerShell Execution:** The game uses native PowerShell speech. Ensure PowerShell is not blocked by strict administrative group policies.
