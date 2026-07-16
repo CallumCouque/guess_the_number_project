@@ -6,7 +6,7 @@ DISCLAIMER: This game was designed to be played on Mac, I have included a window
 
 Use of AI: This project was developed independently with the supportive assistance of an AI collaborator. 
 
-The core game loop, state progression logic, and architecture were designed and written by the developer. AI tools were utilised specifically to aid debug and diagnose, and primarily used with the Tkinter visual layout. 
+The core game loop, state progression logic, and architecture were designed and written by the developer. AI tools were utilised specifically to debug, tidy and diagnose, and primarily used with the Tkinter visual layout. 
 
 ## How the Game Works
 
