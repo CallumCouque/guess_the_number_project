@@ -2,6 +2,12 @@
 
 An interactive guessing game built with Python and Tkinter. The application challenges players to identify a secret number through deduction while navigating five progressively harder levels.
 
+DISCLAIMER: This game was designed to be played on Mac, I have included a windows version but it will not perform to the same standard as I am unable to test it.
+
+Use of AI: This project was developed independently with the supportive assistance of an AI collaborator. 
+
+The core game loop, state progression logic, and architecture were designed and written by the developer. AI tools were utilised specifically to aid debug and diagnose, and primarily used with the Tkinter visual layout. 
+
 ## How the Game Works
 
 * **The Objective:** At the start of each round, the programme generates a random whole number between 1 and 100. The player must guess this secret number.
