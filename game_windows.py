@@ -6,7 +6,14 @@ import ctypes
 import os
 import winsound
 
-# Audio Subsystem for Windows
+# Set working directory to script location for reliable audio loading
+if os.path.dirname(os.path.abspath(__file__)):
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
+# ==============================================================================
+# 1. AUDIO SUBSYSTEM FOR WINDOWS
+# ==============================================================================
+
 def play_background_music(filename="background.mp3"):
     """Plays background MP3 music continuously using Windows Multimedia API."""
     if os.path.exists(filename):
@@ -20,6 +27,7 @@ def play_background_music(filename="background.mp3"):
 def speak_text(text):
     """Uses Windows PowerShell for asynchronous text to speech alerts."""
     try:
+        # Wrapped in an explicit cmd shell execution for maximum Windows compatibility
         cmd = f'powershell -Command "Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak(\'{text}\')"'
         subprocess.Popen(cmd, shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
     except Exception:
@@ -32,14 +40,21 @@ def play_alert_beep():
     except Exception:
         pass
 
-# Colour Palettes and Level Configurations
+# ==============================================================================
+# 2. LEVEL CONFIGURATIONS & THEMES
+# ==============================================================================
+
 THEMES = {
-    1: {"bg": "#1E1E24", "fg": "#FFFFFF", "accent": "#44BBA4", "banner": "LEVEL 1: THE BEGINNING", "attempts": 7},
-    2: {"bg": "#1B2A4A", "fg": "#FFFFFF", "accent": "#0090C1", "banner": "LEVEL 2: GETTING WARMER", "attempts": 6},
-    3: {"bg": "#321325", "fg": "#FFFFFF", "accent": "#E09F3E", "banner": "LEVEL 3: HEATING UP", "attempts": 5},
-    4: {"bg": "#2C0E37", "fg": "#FFFFFF", "accent": "#A100F2", "banner": "LEVEL 4: ADVANCED DEDUCTION", "attempts": 4},
-    5: {"bg": "#3F000F", "fg": "#FFFFFF", "accent": "#D62828", "banner": "LEVEL 5: SUDDEN DEATH", "attempts": 3}
+    1: {"bg": "#1E2A22", "title": "#A3E2A6", "text": "#ECEFF1", "accent": "#4E7055", "box": "#141C17", "banner": "LEVEL 1: THE BEGINNING", "attempts": 7},
+    2: {"bg": "#2A313D", "title": "#A5C6E1", "text": "#F0F4F8", "accent": "#52677B", "box": "#1D232A", "banner": "LEVEL 2: GETTING WARMER", "attempts": 6},
+    3: {"bg": "#2E241F", "title": "#EAA872", "text": "#F9F3EB", "accent": "#725643", "box": "#211A16", "banner": "LEVEL 3: HEATING UP", "attempts": 5},
+    4: {"bg": "#261919", "title": "#F07171", "text": "#FFF0F0", "accent": "#662929", "box": "#1A1010", "banner": "LEVEL 4: ADVANCED DEDUCTION", "attempts": 4},
+    5: {"bg": "#1E1A2A", "title": "#E066FF", "text": "#F3EFFF", "accent": "#5E2B8A", "box": "#13101C", "banner": "LEVEL 5: SUDDEN DEATH", "attempts": 3}
 }
+
+# ==============================================================================
+# 3. MAIN GAME INTERFACE
+# ==============================================================================
 
 class GuessTheNumberWindows:
     def __init__(self, root):
@@ -52,9 +67,11 @@ class GuessTheNumberWindows:
         self.current_level = 1
         self.secret_number = 0
         self.attempts_left = 0
+        self.attempts_taken = 0
         self.past_guesses = set()
         self.guess_sequence = []
         self.history_visible = False
+        self.has_won_game = False
         
         # Statistics Tracking
         self.games_played = 0
@@ -86,10 +103,10 @@ class GuessTheNumberWindows:
         self.attempts_label = tk.Label(self.main_frame, text="", font=("Arial", 12, "italic"))
         self.attempts_label.pack(pady=5)
         
-        # Input Field and Submit Button
+        # Input Field (Binds Return to trigger with or without key event arguments)
         self.entry_box = tk.Entry(self.main_frame, font=("Arial", 16), justify="center", width=10)
         self.entry_box.pack(pady=10)
-        self.entry_box.bind("<Return>", lambda event: self.process_guess())
+        self.entry_box.bind("<Return>", self.process_guess)
         
         self.submit_btn = tk.Button(self.main_frame, text="SUBMIT GUESS", font=("Arial", 12, "bold"), command=self.process_guess, cursor="hand2")
         self.submit_btn.pack(pady=5)
@@ -113,22 +130,27 @@ class GuessTheNumberWindows:
         theme = THEMES[self.current_level]
         self.secret_number = random.randint(1, 100)
         self.attempts_left = theme["attempts"]
+        self.attempts_taken = 0
         self.past_guesses.clear()
         self.guess_sequence.clear()
         self.update_history_drawer()
         self.apply_theme(theme)
         self.feedback_label.config(text="Enter your first guess below.")
         self.update_attempts_display()
+        
+        # Fixes cursor focus theft on round initialization
         self.entry_box.delete(0, tk.END)
+        self.root.focus_force()
+        self.root.after(100, self.entry_box.focus_set)
 
     def apply_theme(self, theme):
         self.main_frame.config(bg=theme["bg"])
         self.banner_label.config(text=theme["banner"], bg=theme["accent"], fg="#000000")
-        self.prompt_label.config(bg=theme["bg"], fg=theme["fg"])
-        self.feedback_label.config(bg=theme["bg"], fg=theme["accent"])
-        self.attempts_label.config(bg=theme["bg"], fg=theme["fg"])
-        self.stats_frame.config(bg=theme["bg"], fg=theme["accent"])
-        self.stats_label.config(bg=theme["bg"], fg=theme["fg"])
+        self.prompt_label.config(bg=theme["bg"], fg=theme["text"])
+        self.feedback_label.config(bg=theme["bg"], fg=theme["title"])
+        self.attempts_label.config(bg=theme["bg"], fg=theme["text"])
+        self.stats_frame.config(bg=theme["bg"], fg=theme["title"])
+        self.stats_label.config(bg=theme["bg"], fg=theme["text"])
         self.history_btn.config(bg=theme["accent"], fg="#000000")
 
     def update_attempts_display(self):
@@ -182,7 +204,7 @@ class GuessTheNumberWindows:
         self.main_frame.config(bg="#FFFFFF")
         self.root.after(300, lambda: self.main_frame.config(bg=original_bg))
 
-    def process_guess(self):
+    def process_guess(self, event=None):
         input_val = self.entry_box.get().strip()
         self.entry_box.delete(0, tk.END)
         
@@ -211,6 +233,7 @@ class GuessTheNumberWindows:
         self.update_history_drawer()
         self.trigger_strobe_flash()
         self.attempts_left -= 1
+        self.attempts_taken += 1
         self.update_attempts_display()
         
         if guess == self.secret_number:
@@ -227,10 +250,9 @@ class GuessTheNumberWindows:
     def handle_victory(self):
         self.games_played += 1
         self.total_wins += 1
-        attempts_used = THEMES[self.current_level]["attempts"] - self.attempts_left
         
-        if self.best_round is None or attempts_used < self.best_round:
-            self.best_round = attempts_used
+        if self.best_round is None or self.attempts_taken < self.best_round:
+            self.best_round = self.attempts_taken
             
         speak_text("Correct! You cleared the level.")
         

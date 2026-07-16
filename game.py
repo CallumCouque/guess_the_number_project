@@ -56,9 +56,10 @@ THEMES = {
 # ==============================================================================
 
 def speak_mac(text):
-    """Asynchronous macOS text-to-speech output."""
+    """Asynchronous macOS text-to-speech output using system shell."""
     try:
-        subprocess.Popen(["say", text], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        cmd = f"say {text}"
+        subprocess.Popen(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except Exception:
         pass
 
@@ -260,7 +261,8 @@ def start_new_round():
     feedback_lbl.config(text="I have chosen a number between 1 and 100.")
     attempts_lbl.config(text=f"Attempts Remaining: {ATTEMPTS_LEFT}")
     guess_entry.delete(0, tk.END)
-    guess_entry.focus()
+    root.focus_force()
+    root.after(100, guess_entry.focus_set)
 
 def process_guess(event=None):
     """Validates user input, checks anti-cheat rules, triggers feedback, and resolves turn state."""

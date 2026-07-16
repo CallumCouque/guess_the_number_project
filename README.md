@@ -32,3 +32,15 @@ An interactive guessing game built with Python and Tkinter. The application chal
 
 ```bash
 python3 game.py
+
+## Troubleshooting Audio & Voice Alerts
+
+If you do not hear the voice alerts or background music:
+
+### On macOS:
+1. **Unmute System:** Ensure your Mac is not on mute and the output volume is turned up.
+2. **Terminal Permissions:** If running via a third-party terminal wrapper, ensure your terminal has permission to run system alerts.
+3. **Check System Voice:** Open Terminal and type `say "hello"`. If you hear nothing, check your macOS **System Settings > Accessibility > Spoken Content** to ensure a system voice is downloaded.
+
+### On Windows:
+1. **PowerShell Execution:** The game uses native PowerShell speech. Ensure PowerShell is not blocked by strict administrative group policies.
